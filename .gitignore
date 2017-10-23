@@ -1,3 +1,5 @@
+.DS*
+
 # Compiled class file
 *.class
 
