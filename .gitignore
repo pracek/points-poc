@@ -1,4 +1,7 @@
 .DS*
+.idea/*
+points.iml
+
 
 # Compiled class file
 *.class
