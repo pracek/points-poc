@@ -1,38 +1,49 @@
 package pl.pracuch.points.web;
 
-import io.vavr.control.Try;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import pl.pracuch.points.api.BurnPointsCommand;
 import pl.pracuch.points.api.DepositPointsCommand;
 import pl.pracuch.points.domain.PointsAccount;
 import pl.pracuch.points.domain.PointsAccountId;
-import pl.pracuch.points.api.BurnPointsCommand;
-import reactor.core.publisher.Flux;
+import pl.pracuch.points.domain.PointsAccountRepository;
+import pl.pracuch.points.infrastructure.PointsAccountDAO;
+import pl.pracuch.points.wev.PointsAccountViewModel;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.web.reactive.function.BodyInserters.fromObject;
 
 @Component
 public class PointsHandler {
 
-    private static final PointsAccountId POINTS_ACCOUNT_ID = PointsAccountId.of("1beb4ecc-746d-44cd-9b83-0f0a68ef8eea");
+    private PointsAccountRepository pointsAccountRepository;
+    private PointsAccountDAO pointsAccountDAO;
 
-    private Map<PointsAccountId, PointsAccount> points = new HashMap<>();
+    @Autowired
+    public PointsHandler(PointsAccountRepository pointsAccountRepository, PointsAccountDAO pointsAccountDAO) {
+        this.pointsAccountRepository = pointsAccountRepository;
+        this.pointsAccountDAO = pointsAccountDAO;
+    }
 
-    public PointsHandler() {
-        points.put(POINTS_ACCOUNT_ID, new PointsAccount(POINTS_ACCOUNT_ID));
+    public Mono<ServerResponse> getPointsAccount(ServerRequest serverRequest) {
+        PointsAccountId pointsAccountId = PointsAccountId.of(serverRequest.pathVariable("accountId"));
+        Mono<ServerResponse> notFound = ServerResponse.notFound().build();
+        Mono<PointsAccountViewModel> pointsAccountMono = pointsAccountDAO.byPointsAccountId(pointsAccountId);
+
+        return pointsAccountMono
+//                .flatMap(pointsAccount -> ServerResponse.ok().contentType(APPLICATION_JSON).body(fromObject("{\"abc\": \"abc\"}")))
+                .flatMap(pointsAccount -> ServerResponse.ok().contentType(APPLICATION_JSON).body(fromObject(pointsAccount)))
+                .switchIfEmpty(notFound);
     }
 
     public Mono<ServerResponse> deposit(ServerRequest serverRequest) {
         PointsAccountId pointsAccountId = PointsAccountId.of(serverRequest.pathVariable("accountId"));
         Mono<ServerResponse> notFound = ServerResponse.notFound().build();
-        return getPointsAccountById(pointsAccountId)
+        return pointsAccountRepository
+                .get(pointsAccountId)
                 .flatMap(pointsAccount -> toDepositPointsCommand(serverRequest, pointsAccount.id()))
                 // TODO: fire the command
                 .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
@@ -42,7 +53,8 @@ public class PointsHandler {
     public Mono<ServerResponse> burnPoints(ServerRequest serverRequest) {
         PointsAccountId pointsAccountId = PointsAccountId.of(serverRequest.pathVariable("accountId"));
         Mono<ServerResponse> notFound = ServerResponse.notFound().build();
-        return getPointsAccountById(pointsAccountId)
+        return pointsAccountRepository
+                .get(pointsAccountId)
                 .flatMap(pointsAccount -> toBurnPointsCommand(serverRequest, pointsAccount.id()))
                 // TODO: fire the command
                 .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
@@ -55,13 +67,6 @@ public class PointsHandler {
 
     private Mono<DepositPointsCommand> toDepositPointsCommand(ServerRequest request, PointsAccountId pointsAccountId) {
         return request.bodyToMono(DepositDTO.class).map(depositDTO -> DepositPointsCommand.of(pointsAccountId, depositDTO.getAmount()));
-    }
-
-    private Mono<PointsAccount> getPointsAccountById(PointsAccountId pointsAccountId) {
-        return Flux.fromIterable(points.entrySet())
-                .filter(account -> pointsAccountId.equals(account.getValue().id()))
-                .flatMap(entry -> Mono.justOrEmpty(entry.getValue()))
-                .singleOrEmpty();
     }
 
 }

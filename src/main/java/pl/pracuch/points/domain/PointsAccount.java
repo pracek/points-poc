@@ -27,4 +27,6 @@ public class PointsAccount {
     public PointsAccountId id() {
         return id;
     }
+
+    public Integer balance() {return balance; }
 }

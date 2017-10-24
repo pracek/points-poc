@@ -24,6 +24,7 @@ public class Application {
     @Bean
     public RouterFunction<ServerResponse> _status(StatusHandler statusHandler, PointsHandler pointsHandler) {
         return route(GET("/_status"), statusHandler::_status)
+                .andRoute(GET("/points/{accountId}").and(accept(APPLICATION_JSON)), pointsHandler::getPointsAccount)
                 .andRoute(POST("/points/{accountId}/deposits").and(accept(APPLICATION_JSON)), pointsHandler::deposit)
                 .andRoute(POST("/points/{accountId}/spendings").and(accept(APPLICATION_JSON)), pointsHandler::burnPoints);
     }
