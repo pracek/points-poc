@@ -4,7 +4,7 @@ import org.springframework.stereotype.Component;
 import pl.pracuch.points.domain.PointsAccount;
 import pl.pracuch.points.domain.PointsAccountId;
 import pl.pracuch.points.domain.PointsAccountRepository;
-import pl.pracuch.points.wev.PointsAccountViewModel;
+import pl.pracuch.points.web.PointsAccountViewModel;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

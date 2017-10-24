@@ -6,13 +6,15 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import pl.pracuch.points.api.BurnPointsCommand;
 import pl.pracuch.points.api.DepositPointsCommand;
-import pl.pracuch.points.domain.PointsAccount;
 import pl.pracuch.points.domain.PointsAccountId;
 import pl.pracuch.points.domain.PointsAccountRepository;
 import pl.pracuch.points.infrastructure.PointsAccountDAO;
-import pl.pracuch.points.wev.PointsAccountViewModel;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+
+import static io.vavr.API.$;
+import static io.vavr.API.Match;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.web.reactive.function.BodyInserters.fromObject;
 
@@ -44,7 +46,7 @@ public class PointsHandler {
         Mono<ServerResponse> notFound = ServerResponse.notFound().build();
         return pointsAccountRepository
                 .get(pointsAccountId)
-                .flatMap(pointsAccount -> toDepositPointsCommand(serverRequest, pointsAccount.id()))
+                .flatMap(pointsAccount -> toDepositPointsCommand(serverRequest, pointsAccount.id(), UUID.randomUUID()))
                 // TODO: fire the command
                 .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
                 .switchIfEmpty(notFound);
@@ -55,18 +57,21 @@ public class PointsHandler {
         Mono<ServerResponse> notFound = ServerResponse.notFound().build();
         return pointsAccountRepository
                 .get(pointsAccountId)
-                .flatMap(pointsAccount -> toBurnPointsCommand(serverRequest, pointsAccount.id()))
+                .flatMap(pointsAccount -> toBurnPointsCommand(serverRequest, pointsAccount.id(), UUID.randomUUID()))
                 // TODO: fire the command
                 .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
                 .switchIfEmpty(notFound);
     }
 
-    private Mono<BurnPointsCommand> toBurnPointsCommand(ServerRequest request, PointsAccountId pointsAccountId) {
-        return request.bodyToMono(AmountDTO.class).map(amountDto -> BurnPointsCommand.of(pointsAccountId, amountDto.getAmount()));
+    private Mono<BurnPointsCommand> toBurnPointsCommand(ServerRequest request, PointsAccountId pointsAccountId, UUID operationId) {
+        return request
+                .bodyToMono(AmountDTO.class)
+                .map(amountDto -> BurnPointsCommand.of(operationId, pointsAccountId, amountDto.getAmount()));
     }
 
-    private Mono<DepositPointsCommand> toDepositPointsCommand(ServerRequest request, PointsAccountId pointsAccountId) {
-        return request.bodyToMono(DepositDTO.class).map(depositDTO -> DepositPointsCommand.of(pointsAccountId, depositDTO.getAmount()));
+    private Mono<DepositPointsCommand> toDepositPointsCommand(ServerRequest request, PointsAccountId pointsAccountId, UUID operationId) {
+        return request
+                .bodyToMono(DepositDTO.class)
+                .map(depositDTO -> DepositPointsCommand.of(operationId, pointsAccountId, depositDTO.getAmount()));
     }
-
 }
