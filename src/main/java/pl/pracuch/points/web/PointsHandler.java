@@ -46,7 +46,7 @@ public class PointsHandler {
         Mono<ServerResponse> notFound = ServerResponse.notFound().build();
         return pointsAccountRepository
                 .get(pointsAccountId)
-                .flatMap(pointsAccount -> toDepositPointsCommand(serverRequest, pointsAccount.id(), UUID.randomUUID()))
+                .flatMap(pointsAccount -> toDepositPointsCommand(serverRequest, pointsAccount.id(), operationId(serverRequest)))
                 // TODO: fire the command
                 .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
                 .switchIfEmpty(notFound);
@@ -57,7 +57,7 @@ public class PointsHandler {
         Mono<ServerResponse> notFound = ServerResponse.notFound().build();
         return pointsAccountRepository
                 .get(pointsAccountId)
-                .flatMap(pointsAccount -> toBurnPointsCommand(serverRequest, pointsAccount.id(), UUID.randomUUID()))
+                .flatMap(pointsAccount -> toBurnPointsCommand(serverRequest, pointsAccount.id(), operationId(serverRequest)))
                 // TODO: fire the command
                 .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
                 .switchIfEmpty(notFound);
@@ -73,5 +73,9 @@ public class PointsHandler {
         return request
                 .bodyToMono(DepositDTO.class)
                 .map(depositDTO -> DepositPointsCommand.of(operationId, pointsAccountId, depositDTO.getAmount()));
+    }
+
+    private UUID operationId(ServerRequest request) {
+        return UUID.fromString(request.headers().header("Operation-Id").get(0));
     }
 }
