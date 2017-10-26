@@ -6,15 +6,15 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import pl.pracuch.points.api.BurnPointsCommand;
 import pl.pracuch.points.api.DepositPointsCommand;
+import pl.pracuch.points.api.PointsAccountNotFoundException;
 import pl.pracuch.points.domain.PointsAccountId;
 import pl.pracuch.points.domain.PointsAccountRepository;
+import pl.pracuch.points.infrastructure.CommandGateway;
 import pl.pracuch.points.infrastructure.PointsAccountDAO;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
-import static io.vavr.API.$;
-import static io.vavr.API.Match;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.web.reactive.function.BodyInserters.fromObject;
 
@@ -23,11 +23,13 @@ public class PointsHandler {
 
     private PointsAccountRepository pointsAccountRepository;
     private PointsAccountDAO pointsAccountDAO;
+    private CommandGateway commandGateway;
 
     @Autowired
-    public PointsHandler(PointsAccountRepository pointsAccountRepository, PointsAccountDAO pointsAccountDAO) {
+    public PointsHandler(PointsAccountRepository pointsAccountRepository, PointsAccountDAO pointsAccountDAO, CommandGateway commandGateway) {
         this.pointsAccountRepository = pointsAccountRepository;
         this.pointsAccountDAO = pointsAccountDAO;
+        this.commandGateway = commandGateway;
     }
 
     public Mono<ServerResponse> getPointsAccount(ServerRequest serverRequest) {
@@ -36,31 +38,32 @@ public class PointsHandler {
         Mono<PointsAccountViewModel> pointsAccountMono = pointsAccountDAO.byPointsAccountId(pointsAccountId);
 
         return pointsAccountMono
-//                .flatMap(pointsAccount -> ServerResponse.ok().contentType(APPLICATION_JSON).body(fromObject("{\"abc\": \"abc\"}")))
                 .flatMap(pointsAccount -> ServerResponse.ok().contentType(APPLICATION_JSON).body(fromObject(pointsAccount)))
                 .switchIfEmpty(notFound);
     }
 
     public Mono<ServerResponse> deposit(ServerRequest serverRequest) {
         PointsAccountId pointsAccountId = PointsAccountId.of(serverRequest.pathVariable("accountId"));
-        Mono<ServerResponse> notFound = ServerResponse.notFound().build();
-        return pointsAccountRepository
+        Mono<ServerResponse> commandDispatchResult = pointsAccountRepository
                 .get(pointsAccountId)
+                .switchIfEmpty(Mono.error(new PointsAccountNotFoundException()))
                 .flatMap(pointsAccount -> toDepositPointsCommand(serverRequest, pointsAccount.id(), operationId(serverRequest)))
-                // TODO: fire the command
-                .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
-                .switchIfEmpty(notFound);
+                .flatMap(commandGateway::dispatch)
+                .flatMap(emptyJustToChangeType -> ServerResponse.unprocessableEntity().build());
+        return Mono
+                .first(commandDispatchResult, ServerResponse.ok().contentType(APPLICATION_JSON).build());
     }
 
     public Mono<ServerResponse> burnPoints(ServerRequest serverRequest) {
         PointsAccountId pointsAccountId = PointsAccountId.of(serverRequest.pathVariable("accountId"));
-        Mono<ServerResponse> notFound = ServerResponse.notFound().build();
-        return pointsAccountRepository
+        Mono<ServerResponse> commandDispatchResult = pointsAccountRepository
                 .get(pointsAccountId)
+                .switchIfEmpty(Mono.error(new PointsAccountNotFoundException()))
                 .flatMap(pointsAccount -> toBurnPointsCommand(serverRequest, pointsAccount.id(), operationId(serverRequest)))
-                // TODO: fire the command
-                .flatMap(msg -> ServerResponse.ok().contentType(APPLICATION_JSON).build())
-                .switchIfEmpty(notFound);
+                .flatMap(commandGateway::dispatch)
+                .flatMap(emptyJustToChangeType -> ServerResponse.unprocessableEntity().build());
+        return Mono
+                .first(commandDispatchResult, ServerResponse.ok().contentType(APPLICATION_JSON).build());
     }
 
     private Mono<BurnPointsCommand> toBurnPointsCommand(ServerRequest request, PointsAccountId pointsAccountId, UUID operationId) {

@@ -1,11 +1,11 @@
 package pl.pracuch.points.domain;
 
-import io.vavr.control.Try;
 import pl.pracuch.points.api.InsufficientPointsException;
+import reactor.core.publisher.Mono;
 
 public class PointsAccount {
-    private PointsAccountId id;
-    private Integer balance;
+    private final PointsAccountId id;
+    private final Integer balance;
 
     public PointsAccount(final PointsAccountId id, final Integer initialBalance) {
         this.id = id;
@@ -16,8 +16,12 @@ public class PointsAccount {
         this(id, 0);
     }
 
-    public Try<PointsAccount> burnPoints(final Integer spent) {
-        return canBurnPoints(spent) ? Try.success(new PointsAccount(id, balance - spent)) : Try.failure(new InsufficientPointsException(id));
+    public Mono<PointsAccount> burnPoints(final Integer spent) {
+        return canBurnPoints(spent) ? Mono.just(new PointsAccount(id, balance - spent)) : Mono.error(new InsufficientPointsException(id));
+    }
+
+    public PointsAccount depositPoints(final Integer deposit) {
+        return new PointsAccount(this.id, this.balance + deposit);
     }
 
     public boolean canBurnPoints(final Integer amount) {

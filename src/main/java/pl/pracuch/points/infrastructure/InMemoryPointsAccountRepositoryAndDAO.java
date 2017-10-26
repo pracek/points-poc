@@ -22,10 +22,10 @@ public class InMemoryPointsAccountRepositoryAndDAO implements PointsAccountRepos
         points.put(INITIAL_POINTS_ACCOUNT_ID, new PointsAccount(INITIAL_POINTS_ACCOUNT_ID));
     }
 
-
     @Override
-    public void save(PointsAccount pointsAccount) {
+    public Mono<Void> save(PointsAccount pointsAccount) {
         points.put(pointsAccount.id(), pointsAccount);
+        return Mono.empty();
     }
 
     @Override

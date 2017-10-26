@@ -1,9 +1,9 @@
 package pl.pracuch.points.infrastructure;
 
-import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface CommandGateway {
 
-    <R> Flux<R> dispatch(Command command);
+    <R> Mono<R> dispatch(Command command);
 
 }
