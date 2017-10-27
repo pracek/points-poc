@@ -29,6 +29,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
+		<!-- Nats Spring client -->
+		<dependency>
+			<groupId>com.github.cloudfoundry-community</groupId>
+			<artifactId>nats-client-spring</artifactId>
+			<version>0.7-SNAPSHOT</version>
+		</dependency>
 		<!-- Utilities -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
@@ -104,6 +110,5 @@
 			</snapshots>
 		</pluginRepository>
 	</pluginRepositories>
-
 
 </project>
